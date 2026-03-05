@@ -25,13 +25,13 @@
   ansible.builtin.set_fact:
     _pki_ca_create_payload:
       subject:
-        cn: "{{ pki_ca_cn }}"
-        o: "{{ pki_ca_org }}"
-        c: "{{ pki_ca_country }}"
-        ou: "{{ pki_ca_ou | default(omit) }}"
-        st: "{{ pki_ca_state | default(omit) }}"
-        l: "{{ pki_ca_locality | default(omit) }}"
-      algorithm: "{{ pki_ca_algorithm | default(pki_ca_algorithm) }}"
+        commonName: "{{ pki_ca_cn }}"
+        organization: "{{ pki_ca_org }}"
+        country: "{{ pki_ca_country }}"
+        organizationalUnit: "{{ pki_ca_ou | default(omit) }}"
+        state: "{{ pki_ca_state | default(omit) }}"
+        locality: "{{ pki_ca_locality | default(omit) }}"
+      keyAlgorithm: "{{ pki_ca_algorithm | default(pki_ca_algorithm) }}"
       validityDays: "{{ pki_ca_validity | default(pki_ca_validity_days) }}"
 
 - name: Create Certificate Authority

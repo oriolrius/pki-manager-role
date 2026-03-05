@@ -96,6 +96,8 @@
         pki_action: cert_issue
         pki_ca_id: "{{ test_ca_id }}"
         pki_cert_cn: "{{ test_cert_cn }}"
+        pki_cert_org: "{{ test_ca_org }}"
+        pki_cert_country: "{{ test_ca_country }}"
         pki_cert_type: "server"
         pki_cert_dns_names:
           - "{{ test_cert_cn }}"
@@ -160,26 +162,26 @@
           - pem_file.stat.exists
         fail_msg: "PEM file was not downloaded"
 
-    - name: Download certificate as PKCS12
+    - name: Download certificate as P12
       ansible.builtin.include_role:
         name: pki_manager
       vars:
         pki_action: cert_download
         pki_cert_id: "{{ test_cert_id }}"
-        pki_download_format: pkcs12
+        pki_download_format: p12
         pki_download_password: "testpassword123"
         pki_output_dir: "/tmp/pki_test"
 
-    - name: Verify PKCS12 file was downloaded
+    - name: Verify P12 file was downloaded
       ansible.builtin.stat:
         path: "{{ pki_downloaded_file }}"
-      register: pkcs12_file
+      register: p12_file
 
-    - name: Assert PKCS12 file exists
+    - name: Assert P12 file exists
       ansible.builtin.assert:
         that:
-          - pkcs12_file.stat.exists
-        fail_msg: "PKCS12 file was not downloaded"
+          - p12_file.stat.exists
+        fail_msg: "P12 file was not downloaded"
 
     # ==================== Search Tests ====================
     - name: Search for test certificate
@@ -201,7 +203,7 @@
         name: pki_manager
       vars:
         pki_action: expiring
-        pki_expiring_limit: 100
+        pki_expiring_limit: 20
 
     # ==================== Renewal Tests ====================
     - name: Renew the test certificate

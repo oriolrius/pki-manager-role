@@ -34,9 +34,20 @@ _pki_valid_statuses:
   - revoked
   - expired
 
-# Download format mappings
+# Download format mappings (API format values)
 _pki_download_formats:
   pem: "pem"
   der: "der"
-  pkcs12: "pkcs12"
-  jks: "jks"
+  chain-pem: "chain-pem"
+  full-pem: "full-pem"
+  full-der: "full-der"
+  key-pem: "key-pem"
+  key-der: "key-der"
+  csr-pem: "csr-pem"
+  p12: "p12"
+  pfx: "pfx"
+  pkcs8-pem: "pkcs8-pem"
+  pkcs8-der: "pkcs8-der"
+  pkcs8-encrypted: "pkcs8-encrypted"
+  jks-keystore: "jks-keystore"
+  jks-truststore: "jks-truststore"

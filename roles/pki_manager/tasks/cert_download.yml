@@ -20,8 +20,8 @@
     fail_msg: "pki_download_format must be one of: {{ _pki_download_formats.keys() | list | join(', ') }}"
     quiet: true
 
-- name: Validate password for PKCS12/JKS formats
-  when: _pki_download_format in ['pkcs12', 'jks']
+- name: Validate password for PKCS12/JKS/encrypted formats
+  when: _pki_download_format in ['p12', 'pfx', 'jks-keystore', 'jks-truststore', 'pkcs8-encrypted']
   ansible.builtin.assert:
     that:
       - pki_download_password is defined
@@ -44,28 +44,30 @@
   ansible.builtin.set_fact:
     _pki_download_url: "{{ pki_api_url }}/certificates/{{ pki_cert_id }}/download?format={{ _pki_download_format }}"
 
-- name: Add password to URL for PKCS12/JKS
-  when: _pki_download_format in ['pkcs12', 'jks']
+- name: Add password to URL for encrypted formats
+  when: _pki_download_format in ['p12', 'pfx', 'jks-keystore', 'jks-truststore', 'pkcs8-encrypted']
   ansible.builtin.set_fact:
     _pki_download_url: "{{ _pki_download_url }}&password={{ pki_download_password | urlencode }}"
 
-- name: Download certificate
+- name: Download certificate (API request)
   ansible.builtin.uri:
     url: "{{ _pki_download_url }}"
     method: GET
     headers: "{{ _pki_auth_headers }}"
-    dest: "{{ _pki_download_dest }}"
+    return_content: true
     timeout: "{{ pki_api_timeout }}"
     validate_certs: "{{ pki_validate_certs }}"
   register: pki_cert_download_result
-  no_log: "{{ _pki_download_format in ['pkcs12', 'jks'] }}"
+  no_log: "{{ _pki_download_format in ['p12', 'pfx', 'jks-keystore', 'jks-truststore', 'pkcs8-encrypted'] }}"
 
-- name: Set appropriate file permissions
-  ansible.builtin.file:
-    path: "{{ _pki_download_dest }}"
+- name: Write certificate data to file
+  ansible.builtin.copy:
+    content: "{{ pki_cert_download_result.json.data | b64decode }}"
+    dest: "{{ _pki_download_dest }}"
     mode: "{{ pki_download_mode | default('0600') }}"
     owner: "{{ pki_download_owner | default(omit) }}"
     group: "{{ pki_download_group | default(omit) }}"
+  no_log: "{{ _pki_download_format in ['p12', 'pfx', 'jks-keystore', 'jks-truststore', 'pkcs8-encrypted'] }}"
 
 - name: Set download result fact
   ansible.builtin.set_fact:

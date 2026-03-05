@@ -16,8 +16,8 @@
 
 - name: Set CA list fact
   ansible.builtin.set_fact:
-    pki_cas: "{{ pki_ca_list_result.json.items | default([]) }}"
-    pki_ca_count: "{{ pki_ca_list_result.json.total | default(pki_ca_list_result.json.items | default([]) | length) }}"
+    pki_cas: "{{ pki_ca_list_result.json['items'] | default([]) }}"
+    pki_ca_count: "{{ pki_ca_list_result.json.pagination.total | default(pki_ca_list_result.json['items'] | default([]) | length) }}"
 
 - name: Display CA list
   ansible.builtin.debug:

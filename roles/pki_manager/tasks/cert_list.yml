@@ -31,8 +31,8 @@
 
 - name: Set certificate list fact
   ansible.builtin.set_fact:
-    pki_certificates: "{{ pki_cert_list_result.json.items | default([]) }}"
-    pki_cert_count: "{{ pki_cert_list_result.json.total | default(pki_cert_list_result.json.items | default([]) | length) }}"
+    pki_certificates: "{{ pki_cert_list_result.json['items'] | default([]) }}"
+    pki_cert_count: "{{ pki_cert_list_result.json.pagination.total | default(pki_cert_list_result.json['items'] | default([]) | length) }}"
 
 - name: Display certificate list
   ansible.builtin.debug:

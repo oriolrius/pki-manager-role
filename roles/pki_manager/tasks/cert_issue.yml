@@ -32,14 +32,14 @@
     _pki_cert_issue_payload:
       caId: "{{ pki_ca_id }}"
       subject:
-        cn: "{{ pki_cert_cn }}"
-        o: "{{ pki_cert_org | default(omit) }}"
-        c: "{{ pki_cert_country | default(omit) }}"
-        ou: "{{ pki_cert_ou | default(omit) }}"
-        st: "{{ pki_cert_state | default(omit) }}"
-        l: "{{ pki_cert_locality | default(omit) }}"
+        commonName: "{{ pki_cert_cn }}"
+        organization: "{{ pki_cert_org | default(omit) }}"
+        country: "{{ pki_cert_country | default(omit) }}"
+        organizationalUnit: "{{ pki_cert_ou | default(omit) }}"
+        state: "{{ pki_cert_state | default(omit) }}"
+        locality: "{{ pki_cert_locality | default(omit) }}"
       certificateType: "{{ pki_cert_type | default(pki_cert_type) }}"
-      algorithm: "{{ pki_cert_algorithm | default(pki_cert_algorithm) }}"
+      keyAlgorithm: "{{ pki_cert_algorithm | default(pki_cert_algorithm) }}"
       validityDays: "{{ pki_cert_validity | default(pki_cert_validity_days) }}"
 
 - name: Add DNS SANs if specified
