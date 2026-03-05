@@ -1,7 +1,7 @@
 ---
 namespace: oriolrius
 name: pki_manager
-version: 2.1.2
+version: 2.1.3
 readme: README.md
 authors:
   - Oriol Rius <oriol@joor.net>
