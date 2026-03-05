@@ -21,6 +21,13 @@ pki_ca_trust_dir: "/usr/local/share/ca-certificates"
 pki_cert_validity: 365
 pki_cert_algorithm: "RSA-2048"
 
+# Default certificate subject fields (required by PKI Manager API)
+pki_cert_org: ""       # Organization (required)
+pki_cert_country: ""   # Country code, 2 letters (required)
+pki_cert_ou: ""        # Organizational Unit (optional)
+pki_cert_state: ""     # State/Province (optional)
+pki_cert_locality: ""  # Locality/City (optional)
+
 # List of certificates to issue and install
 # Each certificate can have:
 #   - name: identifier for the certificate (default: ansible_hostname)

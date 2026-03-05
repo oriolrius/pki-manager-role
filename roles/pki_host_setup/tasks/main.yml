@@ -17,7 +17,9 @@
       - pki_client_id | length > 0
       - pki_client_secret | length > 0
       - pki_ca_id | length > 0
-    fail_msg: "Missing required PKI configuration variables"
+      - pki_cert_org | length > 0
+      - pki_cert_country | length == 2
+    fail_msg: "Missing required PKI configuration variables (api_url, oidc_url, client_id, client_secret, ca_id, cert_org, cert_country)"
 
 - name: Ensure ssl-cert group exists
   ansible.builtin.group:
@@ -53,8 +55,8 @@
   block:
     - name: Write CA certificate to trust store
       ansible.builtin.copy:
-        content: "{{ _pki_ca_info.ca.certificate }}"
-        dest: "{{ pki_ca_trust_dir }}/{{ _pki_ca_info.ca.cn | replace(' ', '_') }}.crt"
+        content: "{{ _pki_ca_info.ca.certificatePem }}"
+        dest: "{{ pki_ca_trust_dir }}/pki-ca-{{ pki_ca_id | regex_replace('[^a-zA-Z0-9]', '-') }}.crt"
         owner: root
         group: root
         mode: "0644"

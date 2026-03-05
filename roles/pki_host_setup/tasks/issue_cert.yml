@@ -39,11 +39,11 @@
     cert_ip_addresses: "{{ _cert_ip_addresses }}"
     cert_validity: "{{ _cert_validity }}"
     cert_algorithm: "{{ cert_config.algorithm | default(pki_cert_algorithm) }}"
-    cert_org: "{{ cert_config.org | default(omit) }}"
-    cert_country: "{{ cert_config.country | default(omit) }}"
-    cert_ou: "{{ cert_config.ou | default(omit) }}"
-    cert_state: "{{ cert_config.state | default(omit) }}"
-    cert_locality: "{{ cert_config.locality | default(omit) }}"
+    cert_org: "{{ cert_config.org | default(pki_cert_org) }}"
+    cert_country: "{{ cert_config.country | default(pki_cert_country) }}"
+    cert_ou: "{{ cert_config.ou | default(pki_cert_ou) | default(omit, true) }}"
+    cert_state: "{{ cert_config.state | default(pki_cert_state) | default(omit, true) }}"
+    cert_locality: "{{ cert_config.locality | default(pki_cert_locality) | default(omit, true) }}"
   register: _cert_issued
 
 - name: "Download certificate (PEM): {{ _cert_name }}"
