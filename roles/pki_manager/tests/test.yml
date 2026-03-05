@@ -1,0 +1,272 @@
+---
+# Test playbook for PKI Manager role
+# Run with: ansible-playbook -i tests/inventory tests/test.yml
+#
+# Required environment variables:
+#   PKI_API_URL - PKI Manager API URL
+#   PKI_OIDC_URL - OIDC token endpoint
+#   PKI_CLIENT_ID - OIDC client ID
+#   PKI_CLIENT_SECRET - OIDC client secret
+
+- name: Test PKI Manager role
+  hosts: localhost
+  gather_facts: true
+  vars:
+    pki_api_url: "{{ lookup('env', 'PKI_API_URL') }}"
+    pki_oidc_url: "{{ lookup('env', 'PKI_OIDC_URL') }}"
+    pki_client_id: "{{ lookup('env', 'PKI_CLIENT_ID') }}"
+    pki_client_secret: "{{ lookup('env', 'PKI_CLIENT_SECRET') }}"
+    test_ca_cn: "Test CA - Ansible {{ ansible_date_time.iso8601_basic_short }}"
+    test_ca_org: "Test Organization"
+    test_ca_country: "ES"
+    test_cert_cn: "test.example.com"
+
+  tasks:
+    # ==================== Authentication Tests ====================
+    - name: Test authentication
+      ansible.builtin.include_role:
+        name: pki_manager
+      vars:
+        pki_action: auth_test
+
+    # ==================== Statistics Tests ====================
+    - name: Get PKI statistics
+      ansible.builtin.include_role:
+        name: pki_manager
+      vars:
+        pki_action: stats
+
+    - name: Verify statistics were retrieved
+      ansible.builtin.assert:
+        that:
+          - pki_stats is defined
+        fail_msg: "Statistics were not retrieved"
+
+    # ==================== CA Tests ====================
+    - name: List existing CAs
+      ansible.builtin.include_role:
+        name: pki_manager
+      vars:
+        pki_action: ca_list
+
+    - name: Store initial CA count
+      ansible.builtin.set_fact:
+        initial_ca_count: "{{ pki_ca_count }}"
+
+    - name: Create a test CA
+      ansible.builtin.include_role:
+        name: pki_manager
+      vars:
+        pki_action: ca_create
+        pki_ca_cn: "{{ test_ca_cn }}"
+        pki_ca_org: "{{ test_ca_org }}"
+        pki_ca_country: "{{ test_ca_country }}"
+        pki_ca_validity: 365
+
+    - name: Store created CA ID
+      ansible.builtin.set_fact:
+        test_ca_id: "{{ pki_ca_id }}"
+
+    - name: Verify CA was created
+      ansible.builtin.assert:
+        that:
+          - test_ca_id is defined
+          - test_ca_id | length > 0
+        fail_msg: "CA was not created successfully"
+
+    - name: Get CA details
+      ansible.builtin.include_role:
+        name: pki_manager
+      vars:
+        pki_action: ca_get
+        pki_ca_id: "{{ test_ca_id }}"
+
+    - name: Verify CA details
+      ansible.builtin.assert:
+        that:
+          - pki_ca is defined
+          - pki_ca.id == test_ca_id
+        fail_msg: "CA details do not match"
+
+    # ==================== Certificate Tests ====================
+    - name: Issue a test certificate
+      ansible.builtin.include_role:
+        name: pki_manager
+      vars:
+        pki_action: cert_issue
+        pki_ca_id: "{{ test_ca_id }}"
+        pki_cert_cn: "{{ test_cert_cn }}"
+        pki_cert_type: "server"
+        pki_cert_dns_names:
+          - "{{ test_cert_cn }}"
+          - "www.example.com"
+        pki_cert_validity: 30
+
+    - name: Store created certificate ID
+      ansible.builtin.set_fact:
+        test_cert_id: "{{ pki_cert_id }}"
+
+    - name: Verify certificate was issued
+      ansible.builtin.assert:
+        that:
+          - test_cert_id is defined
+          - test_cert_id | length > 0
+        fail_msg: "Certificate was not issued successfully"
+
+    - name: Get certificate details
+      ansible.builtin.include_role:
+        name: pki_manager
+      vars:
+        pki_action: cert_get
+        pki_cert_id: "{{ test_cert_id }}"
+
+    - name: Verify certificate details
+      ansible.builtin.assert:
+        that:
+          - pki_certificate is defined
+          - pki_certificate.id == test_cert_id
+        fail_msg: "Certificate details do not match"
+
+    - name: List certificates
+      ansible.builtin.include_role:
+        name: pki_manager
+      vars:
+        pki_action: cert_list
+
+    - name: Verify certificate is in list
+      ansible.builtin.assert:
+        that:
+          - pki_certificates | selectattr('id', 'equalto', test_cert_id) | list | length > 0
+        fail_msg: "Issued certificate not found in list"
+
+    # ==================== Download Tests ====================
+    - name: Download certificate as PEM
+      ansible.builtin.include_role:
+        name: pki_manager
+      vars:
+        pki_action: cert_download
+        pki_cert_id: "{{ test_cert_id }}"
+        pki_download_format: pem
+        pki_output_dir: "/tmp/pki_test"
+
+    - name: Verify PEM file was downloaded
+      ansible.builtin.stat:
+        path: "{{ pki_downloaded_file }}"
+      register: pem_file
+
+    - name: Assert PEM file exists
+      ansible.builtin.assert:
+        that:
+          - pem_file.stat.exists
+        fail_msg: "PEM file was not downloaded"
+
+    - name: Download certificate as PKCS12
+      ansible.builtin.include_role:
+        name: pki_manager
+      vars:
+        pki_action: cert_download
+        pki_cert_id: "{{ test_cert_id }}"
+        pki_download_format: pkcs12
+        pki_download_password: "testpassword123"
+        pki_output_dir: "/tmp/pki_test"
+
+    - name: Verify PKCS12 file was downloaded
+      ansible.builtin.stat:
+        path: "{{ pki_downloaded_file }}"
+      register: pkcs12_file
+
+    - name: Assert PKCS12 file exists
+      ansible.builtin.assert:
+        that:
+          - pkcs12_file.stat.exists
+        fail_msg: "PKCS12 file was not downloaded"
+
+    # ==================== Search Tests ====================
+    - name: Search for test certificate
+      ansible.builtin.include_role:
+        name: pki_manager
+      vars:
+        pki_action: search
+        pki_search_query: "{{ test_cert_cn }}"
+
+    - name: Verify search found results
+      ansible.builtin.assert:
+        that:
+          - pki_search_count | int > 0
+        fail_msg: "Search did not find the test certificate"
+
+    # ==================== Expiring Tests ====================
+    - name: Get expiring certificates
+      ansible.builtin.include_role:
+        name: pki_manager
+      vars:
+        pki_action: expiring
+        pki_expiring_limit: 100
+
+    # ==================== Renewal Tests ====================
+    - name: Renew the test certificate
+      ansible.builtin.include_role:
+        name: pki_manager
+      vars:
+        pki_action: cert_renew
+        pki_cert_id: "{{ test_cert_id }}"
+        pki_cert_validity: 60
+
+    - name: Store renewed certificate ID
+      ansible.builtin.set_fact:
+        renewed_cert_id: "{{ pki_new_cert_id }}"
+
+    - name: Verify certificate was renewed
+      ansible.builtin.assert:
+        that:
+          - renewed_cert_id is defined
+          - renewed_cert_id | length > 0
+        fail_msg: "Certificate was not renewed successfully"
+
+    # ==================== Revocation Tests ====================
+    - name: Revoke the original certificate
+      ansible.builtin.include_role:
+        name: pki_manager
+      vars:
+        pki_action: cert_revoke
+        pki_cert_id: "{{ test_cert_id }}"
+        pki_revocation_reason: "superseded"
+
+    # ==================== Cleanup ====================
+    - name: Delete the renewed certificate
+      ansible.builtin.include_role:
+        name: pki_manager
+      vars:
+        pki_action: cert_delete
+        pki_cert_id: "{{ renewed_cert_id }}"
+
+    - name: Delete the original certificate
+      ansible.builtin.include_role:
+        name: pki_manager
+      vars:
+        pki_action: cert_delete
+        pki_cert_id: "{{ test_cert_id }}"
+
+    - name: Revoke the test CA
+      ansible.builtin.include_role:
+        name: pki_manager
+      vars:
+        pki_action: ca_revoke
+        pki_ca_id: "{{ test_ca_id }}"
+        pki_revocation_reason: "cessationOfOperation"
+
+    - name: Delete the test CA
+      ansible.builtin.include_role:
+        name: pki_manager
+      vars:
+        pki_action: ca_delete
+        pki_ca_id: "{{ test_ca_id }}"
+
+    - name: Clean up test files
+      ansible.builtin.file:
+        path: "/tmp/pki_test"
+        state: absent
+
+    - name: All tests passed
+      ansible.builtin.debug:
+        msg: "All PKI Manager role tests completed successfully!"

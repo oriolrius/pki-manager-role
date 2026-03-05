@@ -1,0 +1,38 @@
+---
+# Get expiring certificates
+
+- name: Build expiring certificates URL
+  ansible.builtin.set_fact:
+    _pki_expiring_url: "{{ pki_api_url }}/dashboard/expiring"
+
+- name: Add limit parameter if specified
+  when: pki_expiring_limit is defined
+  ansible.builtin.set_fact:
+    _pki_expiring_url: "{{ _pki_expiring_url }}?limit={{ pki_expiring_limit }}"
+
+- name: Get expiring certificates
+  ansible.builtin.uri:
+    url: "{{ _pki_expiring_url }}"
+    method: GET
+    headers: "{{ _pki_auth_headers }}"
+    timeout: "{{ pki_api_timeout }}"
+    validate_certs: "{{ pki_validate_certs }}"
+  register: pki_expiring_result
+
+- name: Set expiring certificates fact
+  ansible.builtin.set_fact:
+    pki_expiring_certs: "{{ pki_expiring_result.json }}"
+    pki_expiring_count: "{{ pki_expiring_result.json | length }}"
+
+- name: Display expiring certificates
+  ansible.builtin.debug:
+    msg: "Found {{ pki_expiring_count }} expiring certificates"
+  when: not (pki_quiet | default(false))
+
+- name: List expiring certificates details
+  ansible.builtin.debug:
+    msg: "{{ item.cn }} ({{ item.id }}) expires in {{ item.daysRemaining }} days"
+  loop: "{{ pki_expiring_certs }}"
+  loop_control:
+    label: "{{ item.cn | default(item.id) }}"
+  when: not (pki_quiet | default(false))

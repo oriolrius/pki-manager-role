@@ -1,0 +1,45 @@
+---
+# Main entry point for PKI Manager role
+# This file routes to the appropriate task file based on pki_action
+
+- name: Validate required configuration
+  ansible.builtin.assert:
+    that:
+      - pki_api_url | length > 0
+      - pki_oidc_url | length > 0
+      - pki_client_id | length > 0
+      - pki_client_secret | length > 0
+    fail_msg: "PKI Manager configuration incomplete. Set pki_api_url, pki_oidc_url, pki_client_id, and pki_client_secret"
+    quiet: true
+
+- name: Validate pki_action is set
+  ansible.builtin.assert:
+    that:
+      - pki_action is defined
+      - pki_action in _pki_valid_actions
+    fail_msg: "pki_action must be one of: {{ _pki_valid_actions | join(', ') }}"
+    quiet: true
+  vars:
+    _pki_valid_actions:
+      - auth_test
+      - ca_list
+      - ca_get
+      - ca_create
+      - ca_revoke
+      - ca_delete
+      - cert_list
+      - cert_get
+      - cert_issue
+      - cert_renew
+      - cert_revoke
+      - cert_delete
+      - cert_download
+      - stats
+      - expiring
+      - search
+
+- name: Authenticate with OIDC
+  ansible.builtin.include_tasks: auth.yml
+
+- name: Execute requested action
+  ansible.builtin.include_tasks: "{{ pki_action }}.yml"

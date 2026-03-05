@@ -1,0 +1,80 @@
+---
+# Issue a new certificate
+
+- name: Validate certificate issuance parameters
+  ansible.builtin.assert:
+    that:
+      - pki_ca_id is defined
+      - pki_ca_id | length > 0
+      - pki_cert_cn is defined
+      - pki_cert_cn | length > 0
+    fail_msg: "pki_ca_id and pki_cert_cn are required for cert_issue action"
+    quiet: true
+
+- name: Validate certificate type if specified
+  when: pki_cert_type is defined
+  ansible.builtin.assert:
+    that:
+      - pki_cert_type in _pki_valid_cert_types
+    fail_msg: "pki_cert_type must be one of: {{ _pki_valid_cert_types | join(', ') }}"
+    quiet: true
+
+- name: Validate algorithm if specified
+  when: pki_cert_algorithm is defined
+  ansible.builtin.assert:
+    that:
+      - pki_cert_algorithm in _pki_valid_algorithms
+    fail_msg: "pki_cert_algorithm must be one of: {{ _pki_valid_algorithms | join(', ') }}"
+    quiet: true
+
+- name: Build certificate issuance payload
+  ansible.builtin.set_fact:
+    _pki_cert_issue_payload:
+      caId: "{{ pki_ca_id }}"
+      subject:
+        cn: "{{ pki_cert_cn }}"
+        o: "{{ pki_cert_org | default(omit) }}"
+        c: "{{ pki_cert_country | default(omit) }}"
+        ou: "{{ pki_cert_ou | default(omit) }}"
+        st: "{{ pki_cert_state | default(omit) }}"
+        l: "{{ pki_cert_locality | default(omit) }}"
+      certificateType: "{{ pki_cert_type | default(pki_cert_type) }}"
+      algorithm: "{{ pki_cert_algorithm | default(pki_cert_algorithm) }}"
+      validityDays: "{{ pki_cert_validity | default(pki_cert_validity_days) }}"
+
+- name: Add DNS SANs if specified
+  when: pki_cert_dns_names is defined and pki_cert_dns_names | length > 0
+  ansible.builtin.set_fact:
+    _pki_cert_issue_payload: "{{ _pki_cert_issue_payload | combine({'sanDns': pki_cert_dns_names}) }}"
+
+- name: Add IP SANs if specified
+  when: pki_cert_ip_addresses is defined and pki_cert_ip_addresses | length > 0
+  ansible.builtin.set_fact:
+    _pki_cert_issue_payload: "{{ _pki_cert_issue_payload | combine({'sanIp': pki_cert_ip_addresses}) }}"
+
+- name: Add Email SANs if specified
+  when: pki_cert_emails is defined and pki_cert_emails | length > 0
+  ansible.builtin.set_fact:
+    _pki_cert_issue_payload: "{{ _pki_cert_issue_payload | combine({'sanEmail': pki_cert_emails}) }}"
+
+- name: Issue certificate
+  ansible.builtin.uri:
+    url: "{{ pki_api_url }}/certificates"
+    method: POST
+    headers: "{{ _pki_auth_headers }}"
+    body_format: json
+    body: "{{ _pki_cert_issue_payload }}"
+    status_code: [200, 201]
+    timeout: "{{ pki_api_timeout }}"
+    validate_certs: "{{ pki_validate_certs }}"
+  register: pki_cert_issue_result
+
+- name: Set issued certificate fact
+  ansible.builtin.set_fact:
+    pki_certificate: "{{ pki_cert_issue_result.json }}"
+    pki_cert_id: "{{ pki_cert_issue_result.json.id }}"
+
+- name: Display issued certificate
+  ansible.builtin.debug:
+    msg: "Issued certificate '{{ pki_cert_cn }}' with ID: {{ pki_cert_id }}"
+  when: not (pki_quiet | default(false))

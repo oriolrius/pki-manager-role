@@ -1,0 +1,37 @@
+---
+# Renew a certificate
+
+- name: Validate certificate renewal parameters
+  ansible.builtin.assert:
+    that:
+      - pki_cert_id is defined
+      - pki_cert_id | length > 0
+    fail_msg: "pki_cert_id is required for cert_renew action"
+    quiet: true
+
+- name: Build certificate renewal payload
+  ansible.builtin.set_fact:
+    _pki_cert_renew_payload:
+      validityDays: "{{ pki_cert_validity | default(pki_cert_validity_days) }}"
+
+- name: Renew certificate
+  ansible.builtin.uri:
+    url: "{{ pki_api_url }}/certificates/{{ pki_cert_id }}/renew"
+    method: POST
+    headers: "{{ _pki_auth_headers }}"
+    body_format: json
+    body: "{{ _pki_cert_renew_payload }}"
+    status_code: [200, 201]
+    timeout: "{{ pki_api_timeout }}"
+    validate_certs: "{{ pki_validate_certs }}"
+  register: pki_cert_renew_result
+
+- name: Set renewed certificate fact
+  ansible.builtin.set_fact:
+    pki_certificate: "{{ pki_cert_renew_result.json }}"
+    pki_new_cert_id: "{{ pki_cert_renew_result.json.id }}"
+
+- name: Display renewal result
+  ansible.builtin.debug:
+    msg: "Renewed certificate {{ pki_cert_id }}. New certificate ID: {{ pki_new_cert_id }}"
+  when: not (pki_quiet | default(false))

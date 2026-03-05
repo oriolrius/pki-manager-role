@@ -1,0 +1,40 @@
+---
+# Revoke a Certificate Authority
+
+- name: Validate CA revocation parameters
+  ansible.builtin.assert:
+    that:
+      - pki_ca_id is defined
+      - pki_ca_id | length > 0
+    fail_msg: "pki_ca_id is required for ca_revoke action"
+    quiet: true
+
+- name: Validate revocation reason if specified
+  when: pki_revocation_reason is defined
+  ansible.builtin.assert:
+    that:
+      - pki_revocation_reason in _pki_valid_revocation_reasons
+    fail_msg: "pki_revocation_reason must be one of: {{ _pki_valid_revocation_reasons | join(', ') }}"
+    quiet: true
+
+- name: Build CA revocation payload
+  ansible.builtin.set_fact:
+    _pki_ca_revoke_payload:
+      reason: "{{ pki_revocation_reason | default('unspecified') }}"
+
+- name: Revoke Certificate Authority
+  ansible.builtin.uri:
+    url: "{{ pki_api_url }}/cas/{{ pki_ca_id }}/revoke"
+    method: POST
+    headers: "{{ _pki_auth_headers }}"
+    body_format: json
+    body: "{{ _pki_ca_revoke_payload }}"
+    status_code: [200, 204]
+    timeout: "{{ pki_api_timeout }}"
+    validate_certs: "{{ pki_validate_certs }}"
+  register: pki_ca_revoke_result
+
+- name: Display revocation result
+  ansible.builtin.debug:
+    msg: "CA {{ pki_ca_id }} has been revoked with reason: {{ pki_revocation_reason | default('unspecified') }}"
+  when: not (pki_quiet | default(false))

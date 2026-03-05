@@ -1,0 +1,34 @@
+---
+# Delete a Certificate Authority
+
+- name: Validate CA deletion parameters
+  ansible.builtin.assert:
+    that:
+      - pki_ca_id is defined
+      - pki_ca_id | length > 0
+    fail_msg: "pki_ca_id is required for ca_delete action"
+    quiet: true
+
+- name: Delete Certificate Authority
+  ansible.builtin.uri:
+    url: "{{ pki_api_url }}/cas/{{ pki_ca_id }}"
+    method: DELETE
+    headers: "{{ _pki_auth_headers }}"
+    status_code: [200, 204, 404]
+    timeout: "{{ pki_api_timeout }}"
+    validate_certs: "{{ pki_validate_certs }}"
+  register: pki_ca_delete_result
+
+- name: Display deletion result
+  ansible.builtin.debug:
+    msg: "CA {{ pki_ca_id }} has been deleted"
+  when:
+    - not (pki_quiet | default(false))
+    - pki_ca_delete_result.status != 404
+
+- name: Note if CA was not found
+  ansible.builtin.debug:
+    msg: "CA {{ pki_ca_id }} was not found (already deleted?)"
+  when:
+    - not (pki_quiet | default(false))
+    - pki_ca_delete_result.status == 404

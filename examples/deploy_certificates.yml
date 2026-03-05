@@ -1,0 +1,82 @@
+---
+# Example: Deploy certificates to web servers
+#
+# This playbook issues certificates for each host in the inventory
+# and deploys them to the appropriate locations.
+#
+# Usage:
+#   ansible-playbook -i inventory deploy_certificates.yml -e "ca_id=YOUR_CA_ID"
+
+- name: Deploy certificates to web servers
+  hosts: webservers
+  gather_facts: true
+  vars:
+    # PKI Manager configuration
+    pki_api_url: "{{ lookup('env', 'PKI_API_URL') }}"
+    pki_oidc_url: "{{ lookup('env', 'PKI_OIDC_URL') }}"
+    pki_client_id: "{{ lookup('env', 'PKI_CLIENT_ID') }}"
+    pki_client_secret: "{{ lookup('env', 'PKI_CLIENT_SECRET') }}"
+
+    # Certificate settings
+    cert_output_dir: "/etc/ssl/private"
+    cert_validity: 365
+
+  tasks:
+    - name: Validate CA ID is provided
+      ansible.builtin.assert:
+        that:
+          - ca_id is defined
+        fail_msg: "Please provide ca_id"
+
+    - name: Ensure certificate directory exists
+      ansible.builtin.file:
+        path: "{{ cert_output_dir }}"
+        state: directory
+        mode: "0750"
+        owner: root
+        group: ssl-cert
+      become: true
+
+    - name: Issue certificate for this host
+      ansible.builtin.include_role:
+        name: pki_manager
+      vars:
+        pki_action: cert_issue
+        pki_ca_id: "{{ ca_id }}"
+        pki_cert_cn: "{{ inventory_hostname }}"
+        pki_cert_type: server
+        pki_cert_dns_names:
+          - "{{ inventory_hostname }}"
+          - "{{ ansible_fqdn | default(inventory_hostname) }}"
+        pki_cert_validity: "{{ cert_validity }}"
+
+    - name: Store certificate ID
+      ansible.builtin.set_fact:
+        host_cert_id: "{{ pki_cert_id }}"
+
+    - name: Download certificate as PEM
+      ansible.builtin.include_role:
+        name: pki_manager
+      vars:
+        pki_action: cert_download
+        pki_cert_id: "{{ host_cert_id }}"
+        pki_download_format: pem
+        pki_download_dest: "{{ cert_output_dir }}/{{ inventory_hostname }}.pem"
+        pki_download_mode: "0640"
+        pki_download_owner: root
+        pki_download_group: ssl-cert
+
+    - name: Reload nginx if installed
+      ansible.builtin.service:
+        name: nginx
+        state: reloaded
+      become: true
+      ignore_errors: true
+      when: "'nginx' in ansible_facts.packages | default({})"
+
+    - name: Display certificate info
+      ansible.builtin.debug:
+        msg: |
+          Certificate deployed for {{ inventory_hostname }}
+          ID: {{ host_cert_id }}
+          Path: {{ cert_output_dir }}/{{ inventory_hostname }}.pem

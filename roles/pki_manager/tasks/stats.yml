@@ -1,0 +1,20 @@
+---
+# Get PKI Manager statistics
+
+- name: Get PKI statistics
+  ansible.builtin.uri:
+    url: "{{ pki_api_url }}/dashboard/stats"
+    method: GET
+    headers: "{{ _pki_auth_headers }}"
+    timeout: "{{ pki_api_timeout }}"
+    validate_certs: "{{ pki_validate_certs }}"
+  register: pki_stats_result
+
+- name: Set statistics fact
+  ansible.builtin.set_fact:
+    pki_stats: "{{ pki_stats_result.json }}"
+
+- name: Display statistics
+  ansible.builtin.debug:
+    var: pki_stats
+  when: not (pki_quiet | default(false))

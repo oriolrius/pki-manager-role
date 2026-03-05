@@ -1,0 +1,57 @@
+---
+# Create a new Certificate Authority
+
+- name: Validate CA creation parameters
+  ansible.builtin.assert:
+    that:
+      - pki_ca_cn is defined
+      - pki_ca_cn | length > 0
+      - pki_ca_org is defined
+      - pki_ca_org | length > 0
+      - pki_ca_country is defined
+      - pki_ca_country | length == 2
+    fail_msg: "pki_ca_cn, pki_ca_org, and pki_ca_country (2-letter code) are required for ca_create"
+    quiet: true
+
+- name: Validate algorithm if specified
+  when: pki_ca_algorithm is defined
+  ansible.builtin.assert:
+    that:
+      - pki_ca_algorithm in _pki_valid_algorithms
+    fail_msg: "pki_ca_algorithm must be one of: {{ _pki_valid_algorithms | join(', ') }}"
+    quiet: true
+
+- name: Build CA creation payload
+  ansible.builtin.set_fact:
+    _pki_ca_create_payload:
+      subject:
+        cn: "{{ pki_ca_cn }}"
+        o: "{{ pki_ca_org }}"
+        c: "{{ pki_ca_country }}"
+        ou: "{{ pki_ca_ou | default(omit) }}"
+        st: "{{ pki_ca_state | default(omit) }}"
+        l: "{{ pki_ca_locality | default(omit) }}"
+      algorithm: "{{ pki_ca_algorithm | default(pki_ca_algorithm) }}"
+      validityDays: "{{ pki_ca_validity | default(pki_ca_validity_days) }}"
+
+- name: Create Certificate Authority
+  ansible.builtin.uri:
+    url: "{{ pki_api_url }}/cas"
+    method: POST
+    headers: "{{ _pki_auth_headers }}"
+    body_format: json
+    body: "{{ _pki_ca_create_payload }}"
+    status_code: [200, 201]
+    timeout: "{{ pki_api_timeout }}"
+    validate_certs: "{{ pki_validate_certs }}"
+  register: pki_ca_create_result
+
+- name: Set created CA fact
+  ansible.builtin.set_fact:
+    pki_ca: "{{ pki_ca_create_result.json }}"
+    pki_ca_id: "{{ pki_ca_create_result.json.id }}"
+
+- name: Display created CA
+  ansible.builtin.debug:
+    msg: "Created CA '{{ pki_ca_cn }}' with ID: {{ pki_ca_id }}"
+  when: not (pki_quiet | default(false))

@@ -1,0 +1,77 @@
+---
+# Download a certificate
+
+- name: Validate certificate download parameters
+  ansible.builtin.assert:
+    that:
+      - pki_cert_id is defined
+      - pki_cert_id | length > 0
+    fail_msg: "pki_cert_id is required for cert_download action"
+    quiet: true
+
+- name: Set default download format
+  ansible.builtin.set_fact:
+    _pki_download_format: "{{ pki_download_format | default('pem') }}"
+
+- name: Validate download format
+  ansible.builtin.assert:
+    that:
+      - _pki_download_format in _pki_download_formats
+    fail_msg: "pki_download_format must be one of: {{ _pki_download_formats.keys() | list | join(', ') }}"
+    quiet: true
+
+- name: Validate password for PKCS12/JKS formats
+  when: _pki_download_format in ['pkcs12', 'jks']
+  ansible.builtin.assert:
+    that:
+      - pki_download_password is defined
+      - pki_download_password | length > 0
+    fail_msg: "pki_download_password is required for {{ _pki_download_format }} format"
+    quiet: true
+
+- name: Ensure output directory exists
+  ansible.builtin.file:
+    path: "{{ pki_output_dir }}"
+    state: directory
+    mode: "0755"
+  when: pki_download_dest is not defined
+
+- name: Set download destination
+  ansible.builtin.set_fact:
+    _pki_download_dest: "{{ pki_download_dest | default(pki_output_dir + '/' + pki_cert_id + '.' + _pki_download_format) }}"
+
+- name: Build download URL
+  ansible.builtin.set_fact:
+    _pki_download_url: "{{ pki_api_url }}/certificates/{{ pki_cert_id }}/download?format={{ _pki_download_format }}"
+
+- name: Add password to URL for PKCS12/JKS
+  when: _pki_download_format in ['pkcs12', 'jks']
+  ansible.builtin.set_fact:
+    _pki_download_url: "{{ _pki_download_url }}&password={{ pki_download_password | urlencode }}"
+
+- name: Download certificate
+  ansible.builtin.uri:
+    url: "{{ _pki_download_url }}"
+    method: GET
+    headers: "{{ _pki_auth_headers }}"
+    dest: "{{ _pki_download_dest }}"
+    timeout: "{{ pki_api_timeout }}"
+    validate_certs: "{{ pki_validate_certs }}"
+  register: pki_cert_download_result
+  no_log: "{{ _pki_download_format in ['pkcs12', 'jks'] }}"
+
+- name: Set appropriate file permissions
+  ansible.builtin.file:
+    path: "{{ _pki_download_dest }}"
+    mode: "{{ pki_download_mode | default('0600') }}"
+    owner: "{{ pki_download_owner | default(omit) }}"
+    group: "{{ pki_download_group | default(omit) }}"
+
+- name: Set download result fact
+  ansible.builtin.set_fact:
+    pki_downloaded_file: "{{ _pki_download_dest }}"
+
+- name: Display download result
+  ansible.builtin.debug:
+    msg: "Certificate {{ pki_cert_id }} downloaded to {{ _pki_download_dest }} (format: {{ _pki_download_format }})"
+  when: not (pki_quiet | default(false))

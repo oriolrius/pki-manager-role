@@ -1,0 +1,49 @@
+---
+# Example: Issue a server certificate
+#
+# Usage:
+#   ansible-playbook issue_certificate.yml \
+#     -e "ca_id=YOUR_CA_ID" \
+#     -e "cert_cn=myserver.example.com" \
+#     -e "cert_dns=myserver.example.com,www.example.com"
+
+- name: Issue a server certificate
+  hosts: localhost
+  gather_facts: false
+  vars:
+    # PKI Manager configuration (use environment variables or Ansible Vault)
+    pki_api_url: "{{ lookup('env', 'PKI_API_URL') }}"
+    pki_oidc_url: "{{ lookup('env', 'PKI_OIDC_URL') }}"
+    pki_client_id: "{{ lookup('env', 'PKI_CLIENT_ID') }}"
+    pki_client_secret: "{{ lookup('env', 'PKI_CLIENT_SECRET') }}"
+
+  tasks:
+    - name: Validate required variables
+      ansible.builtin.assert:
+        that:
+          - ca_id is defined
+          - cert_cn is defined
+        fail_msg: "Please provide ca_id and cert_cn"
+
+    - name: Parse DNS names
+      ansible.builtin.set_fact:
+        dns_names: "{{ cert_dns.split(',') if cert_dns is defined else [cert_cn] }}"
+
+    - name: Issue certificate
+      ansible.builtin.include_role:
+        name: pki_manager
+      vars:
+        pki_action: cert_issue
+        pki_ca_id: "{{ ca_id }}"
+        pki_cert_cn: "{{ cert_cn }}"
+        pki_cert_type: "{{ cert_type | default('server') }}"
+        pki_cert_dns_names: "{{ dns_names }}"
+        pki_cert_validity: "{{ cert_validity | default(365) }}"
+
+    - name: Display result
+      ansible.builtin.debug:
+        msg: |
+          Certificate issued successfully!
+          ID: {{ pki_cert_id }}
+          CN: {{ cert_cn }}
+          DNS Names: {{ dns_names | join(', ') }}

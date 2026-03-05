@@ -1,0 +1,42 @@
+---
+# Internal variables - do not override
+
+# Valid certificate types
+_pki_valid_cert_types:
+  - server
+  - client
+  - email
+  - code_signing
+
+# Valid key algorithms
+_pki_valid_algorithms:
+  - RSA-2048
+  - RSA-4096
+  - ECDSA-P256
+  - ECDSA-P384
+
+# Valid revocation reasons
+_pki_valid_revocation_reasons:
+  - unspecified
+  - keyCompromise
+  - caCompromise
+  - affiliationChanged
+  - superseded
+  - cessationOfOperation
+  - certificateHold
+  - removeFromCRL
+  - privilegeWithdrawn
+  - aaCompromise
+
+# Valid certificate statuses
+_pki_valid_statuses:
+  - active
+  - revoked
+  - expired
+
+# Download format mappings
+_pki_download_formats:
+  pem: "pem"
+  der: "der"
+  pkcs12: "pkcs12"
+  jks: "jks"
