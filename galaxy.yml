@@ -1,7 +1,7 @@
 ---
 namespace: oriolrius
 name: pki_manager
-version: 2.1.1
+version: 2.1.2
 readme: README.md
 authors:
   - Oriol Rius <oriol@joor.net>
@@ -23,5 +23,4 @@ issues: https://github.com/oriolrius/pki-manager-ansible/issues
 build_ignore:
   - .git
   - .gitignore
-  - examples
   - "*.tar.gz"
